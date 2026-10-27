@@ -9,9 +9,19 @@ on:
 permissions:
   contents: write
 
+# A newer push supersedes a queued build instead of stacking duplicates.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
-    runs-on: macos-26
+    # macos-26 sits in the small, heavily contended arm64 pool: pushes were
+    # cancelled after ~15 minutes of queueing without ever being picked up.
+    # macos-15 is the same arm64 architecture with a much larger pool, and it
+    # ships Xcode 26, which the project's iOS 26.0 deployment target requires.
+    runs-on: macos-15
+    timeout-minutes: 45
 
     steps:
       - name: checkout
@@ -22,7 +32,9 @@ jobs:
       - name: setup xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: latest-stable
+          # Pinned on purpose: the image default is Xcode 16.4, which cannot
+          # build an iOS 26.0 deployment target.
+          xcode-version: '26.3'
 
       - name: show xcode version
         run: xcodebuild -version
